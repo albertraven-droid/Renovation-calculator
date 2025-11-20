@@ -69,10 +69,10 @@ To capture all the renovation data, create these custom fields in your GHL locat
 
 ### 4. Customize Contact Information
 
-Update the phone number and consultant information in the HTML (around line 683):
+Update the phone number and consultant information in the HTML (around line 688):
 
 ```html
-<a href="tel:9045551234" class="consultation-btn">Call Clayton: (904) 555-1234</a>
+<a href="tel:9045288600" class="consultation-btn">Call Clayton: (904) 528-8600</a>
 ```
 
 Replace with your actual phone number and name.
@@ -248,7 +248,7 @@ Potential additions:
 
 For questions or issues:
 - **Email**: support@yourcompany.com
-- **Phone**: (904) 555-1234
+- **Phone**: (904) 528-8600
 
 ## 📄 License
 
