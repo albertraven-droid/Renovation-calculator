@@ -247,7 +247,7 @@ Potential additions:
 ## 📞 Support
 
 For questions or issues:
-- **Email**: support@yourcompany.com
+- **Email**: cdavis@cdsremodeling.com
 - **Phone**: (904) 528-8600
 
 ## 📄 License
