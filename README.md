@@ -27,7 +27,7 @@ Open `index.html` and find the configuration section at the top of the `<script>
 
 ```javascript
 const GHL_CONFIG = {
-    apiKey: 'pit-00d1e783-2f53-4a9e-8795-298f6cadf7fa',
+    apiKey: 'pit-c1708855-d2ce-4904-a395-335e206d5632',
     locationId: 'YOUR_LOCATION_ID', // Replace with your GHL Location/Sub-Account ID
     apiVersion: '2021-07-28'
 };
