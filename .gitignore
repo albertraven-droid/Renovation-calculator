@@ -30,3 +30,11 @@ yarn-error.log*
 # Temporary Files
 tmp/
 temp/
+
+# Node modules and dependencies
+node_modules/
+package-lock.json
+
+# Netlify
+.netlify/
+netlify/functions-dist/
