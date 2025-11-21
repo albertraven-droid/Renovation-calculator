@@ -764,6 +764,11 @@
 
     <script>
         // ========================================
+        // CONFIGURATION
+        // ========================================
+        const MAKE_WEBHOOK_URL = 'https://hook.us2.make.com/2ibua35llvqwxnrfah67knkisdi4jfag';
+
+        // ========================================
         // CALCULATOR LOGIC
         // ========================================
 
@@ -978,34 +983,63 @@
             document.getElementById('errorModal').classList.remove('active');
         }
 
-        // GHL Integration Function - Now uses Netlify Function
+        // Send data to Make.com webhook
         async function sendToGHL(data) {
             try {
-                // Send to Netlify serverless function instead of directly to GHL
-                const response = await fetch('/.netlify/functions/submit-contact', {
+                console.log('Sending data to Make webhook...');
+
+                // Prepare data for Make webhook
+                const webhookData = {
+                    // Contact Information
+                    firstName: data.formData.name.split(' ')[0],
+                    lastName: data.formData.name.split(' ').slice(1).join(' ') || '',
+                    fullName: data.formData.name,
+                    email: data.formData.email,
+                    phone: data.formData.phone || '',
+
+                    // Property Details
+                    propertyAddress: data.formData.propertyAddress || 'Not provided',
+                    propertyType: data.formData.propertyType,
+                    squareFootage: data.formData.squareFootage,
+                    propertyAge: data.formData.propertyAge,
+                    propertyCondition: data.formData.condition,
+
+                    // Renovation Details
+                    qualityLevel: data.formData.quality,
+                    investmentStrategy: data.formData.strategy,
+                    renovationAreas: data.formData.selectedAreas.join(', '),
+
+                    // Cost Estimates
+                    estimatedCostLow: Math.round(data.totalLow),
+                    estimatedCostMid: Math.round(data.totalMid),
+                    estimatedCostHigh: Math.round(data.totalHigh),
+
+                    // Metadata
+                    source: 'Renovation Calculator Website',
+                    calculationDate: new Date().toISOString(),
+                    timestamp: Date.now()
+                };
+
+                // Send to Make webhook
+                const response = await fetch(MAKE_WEBHOOK_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(webhookData)
                 });
 
-                const result = await response.json();
-
-                if (!response.ok || !result.success) {
-                    console.error('Failed to save contact:', result);
-                    // Show error modal but don't prevent showing results
-                    showModal(
-                        'Notice',
-                        'Your estimate has been calculated! However, there was an issue saving your contact information. Please contact us directly at (904) 528-8600.'
-                    );
-                    return { success: false, error: result.error || 'Unknown error' };
+                // Make webhooks typically return 200 even for successful submissions
+                if (response.ok) {
+                    console.log('Successfully sent to Make webhook');
+                    return { success: true };
+                } else {
+                    console.error('Make webhook returned error status:', response.status);
+                    throw new Error(`Webhook error: ${response.status}`);
                 }
 
-                console.log('Successfully saved contact:', result);
-                return { success: true, data: result.data };
             } catch (error) {
-                console.error('Error saving contact:', error);
+                console.error('Error sending to Make webhook:', error);
                 // Show error modal but don't prevent showing results
                 showModal(
                     'Notice',
