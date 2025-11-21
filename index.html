@@ -700,10 +700,12 @@
         // CONFIGURATION - UPDATE THESE VALUES
         // ========================================
         const GHL_CONFIG = {
-            apiKey: 'pit-00d1e783-2f53-4a9e-8795-298f6cadf7fa',
+            apiKey: 'pit-b326dc1b-8496-4242-916e-da02123db176',
             locationId: 'Eikn1T3IJ5HrKqwyelJs',
             apiVersion: '2021-07-28'
         };
+
+        const MAKE_WEBHOOK_URL = 'https://hook.us2.make.com/2ibua35llvqwxnrfah67knkisdi4jfag';
 
         // Quality Level Selection
         document.querySelectorAll('.quality-option').forEach(option => {
@@ -889,12 +891,15 @@
                 }
             };
 
-            // Send to GHL
+            // Send to GHL and Make.com
             try {
-                await sendToGHL(window.calculationData);
+                await Promise.all([
+                    sendToGHL(window.calculationData),
+                    sendToMake(window.calculationData)
+                ]);
             } catch (error) {
-                console.error('Error sending to GHL:', error);
-                // Continue even if GHL fails - we still want to show results
+                console.error('Error sending data:', error);
+                // Continue even if sending fails - we still want to show results
             }
 
             // Hide loading overlay
@@ -969,6 +974,65 @@
             } catch (error) {
                 console.error('Failed to send to GHL:', error);
                 // Don't throw - we still want to show results even if GHL fails
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Make.com Webhook Integration Function
+        async function sendToMake(data) {
+            try {
+                const webhookData = {
+                    // Contact Information
+                    firstName: data.formData.name.split(' ')[0],
+                    lastName: data.formData.name.split(' ').slice(1).join(' ') || 'Unknown',
+                    email: data.formData.email,
+                    phone: data.formData.phone || '',
+
+                    // Property Details
+                    propertyAddress: data.formData.propertyAddress || 'Not provided',
+                    propertyType: data.formData.propertyType,
+                    squareFootage: data.formData.squareFootage,
+                    propertyAge: data.formData.propertyAge,
+                    propertyCondition: data.formData.condition,
+                    qualityLevel: data.formData.quality,
+                    investmentStrategy: data.formData.strategy,
+
+                    // Renovation Details
+                    renovationAreas: data.formData.selectedAreas,
+                    renovationAreasText: data.formData.selectedAreas.join(', '),
+
+                    // Cost Estimates
+                    estimatedCostLow: Math.round(data.totalLow),
+                    estimatedCostMid: Math.round(data.totalMid),
+                    estimatedCostHigh: Math.round(data.totalHigh),
+
+                    // Breakdown
+                    costBreakdown: data.breakdown,
+
+                    // Metadata
+                    calculationDate: new Date().toISOString(),
+                    source: 'Renovation Calculator Website',
+                    tags: ['renovation-calculator', 'lead-magnet', data.formData.quality + '-quality']
+                };
+
+                const response = await fetch(MAKE_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(webhookData)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Make.com webhook error:', errorText);
+                    throw new Error(`Make.com webhook error: ${response.status}`);
+                }
+
+                console.log('Successfully sent to Make.com');
+                return { success: true };
+            } catch (error) {
+                console.error('Failed to send to Make.com:', error);
                 return { success: false, error: error.message };
             }
         }
