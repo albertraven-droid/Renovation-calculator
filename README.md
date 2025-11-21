@@ -214,10 +214,67 @@ Create workflows in GHL that trigger on these tags:
 
 ### GHL Integration Not Working
 
-**Check console for errors** (F12 in browser):
-- `GHL locationId not configured`: Update the locationId in config
-- `401 Unauthorized`: Check API key is correct and has permissions
-- `CORS error`: Ensure request is from allowed domain in GHL settings
+The updated integration now includes comprehensive debugging! When you submit the form:
+- ✅ **Success notification**: Green popup confirms lead was captured
+- ⚠️ **Error notification**: Red popup shows if GHL integration failed
+- 🔍 **Console logging**: Detailed debug info in browser console (F12)
+
+**Step-by-Step Debugging:**
+
+1. **Open Browser Console** (F12 → Console tab)
+2. **Submit a test lead** through the form
+3. **Look for the debug output** starting with `=== GHL Integration Debug ===`
+
+**Common Error Messages:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `GHL locationId not configured` | LocationId still set to default | Update `locationId` in GHL_CONFIG (line 704) |
+| `401 Unauthorized` | Invalid API key | Verify API key in GHL Settings → Private Integrations |
+| `403 Forbidden` | Missing API permissions | Check API key has `contacts.write` permission |
+| `400 Bad Request` | Custom fields don't exist | Create custom fields in GHL (see Setup section) |
+| `Network error` / `Failed to fetch` | CORS or connectivity issue | Check domain is allowed in GHL CORS settings |
+
+**Custom Fields Setup Required:**
+
+If you see `400 Bad Request` errors, the custom fields may not exist in your GHL account. Go to:
+1. **Settings** → **Custom Fields** → **Add Custom Field**
+2. Create each field from the table in section "3. Setup Custom Fields in GHL"
+3. **Important**: Field keys must match exactly (case-sensitive):
+   - `property_address`
+   - `property_type`
+   - `square_footage`
+   - `property_age`
+   - `property_condition`
+   - `quality_level`
+   - `investment_strategy`
+   - `renovation_areas`
+   - `estimated_cost_low`
+   - `estimated_cost_mid`
+   - `estimated_cost_high`
+   - `calculation_date`
+
+**Advanced Debugging:**
+
+View the exact data being sent to GHL in console:
+```javascript
+// Console will show:
+Prepared GHL data: {
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "[email protected]",
+  "locationId": "Eikn1T3IJ5HrKqwyelJs",
+  "customField": { ... }
+}
+```
+
+**Test Your Integration:**
+
+1. Fill out form with test data
+2. Submit and check for green success notification
+3. Verify contact appears in GHL: **Contacts** → Search by email
+4. Check custom fields are populated in the contact record
+5. Verify tags were applied: `renovation-calculator`, `lead-magnet`, `{quality}-quality`
 
 ### PDF Not Generating
 
