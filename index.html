@@ -697,13 +697,10 @@
 
     <script>
         // ========================================
-        // CONFIGURATION - UPDATE THESE VALUES
+        // CONFIGURATION
         // ========================================
-        const GHL_CONFIG = {
-            apiKey: 'pit-c1708855-d2ce-4904-a395-335e206d5632',
-            locationId: 'Eikn1T3IJ5HrKqwyelJs',
-            apiVersion: '2021-07-28'
-        };
+        // API credentials are now securely stored in Netlify environment variables
+        // No sensitive data exposed in frontend code
 
         // Quality Level Selection
         document.querySelectorAll('.quality-option').forEach(option => {
@@ -916,36 +913,26 @@
             document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
         });
 
-        // GHL Integration Function
+        // GHL Integration Function - Using Netlify Serverless Function
         async function sendToGHL(data) {
-            console.log('🔧 GHL Integration Starting...');
-            console.log('📍 Location ID:', GHL_CONFIG.locationId);
-            console.log('🔑 API Key (first 10 chars):', GHL_CONFIG.apiKey.substring(0, 10) + '...');
+            console.log('🔧 GHL Integration Starting (via Netlify Function)...');
 
-            // Check if locationId is configured
-            if (GHL_CONFIG.locationId === 'YOUR_LOCATION_ID') {
-                console.warn('❌ GHL locationId not configured. Skipping GHL integration.');
-                console.log('Lead data that would be sent:', data);
-                return { success: false, message: 'Configuration needed' };
-            }
-
-            // Prepare data for GHL Contacts API v2
-            const ghlData = {
+            // Prepare contact data for the serverless function
+            const contactData = {
                 firstName: data.formData.name.split(' ')[0],
                 lastName: data.formData.name.split(' ').slice(1).join(' ') || 'Unknown',
                 email: data.formData.email,
-                locationId: GHL_CONFIG.locationId,
                 source: 'Renovation Calculator Website',
                 tags: ['renovation-calculator', 'lead-magnet', data.formData.quality + '-quality']
             };
 
             // Add phone if provided
             if (data.formData.phone) {
-                ghlData.phone = data.formData.phone;
+                contactData.phone = data.formData.phone;
             }
 
-            // Add custom fields
-            ghlData.customField = {
+            // Add custom fields with all renovation details
+            contactData.customField = {
                 property_address: data.formData.propertyAddress || 'Not provided',
                 property_type: data.formData.propertyType,
                 square_footage: String(data.formData.squareFootage),
@@ -960,64 +947,65 @@
                 calculation_date: new Date().toISOString()
             };
 
-            console.log('📦 Payload to send:', JSON.stringify(ghlData, null, 2));
+            console.log('📦 Contact data prepared:', {
+                email: contactData.email,
+                name: `${contactData.firstName} ${contactData.lastName}`,
+                tags: contactData.tags
+            });
 
             try {
-                console.log('🚀 Sending POST request to GHL API...');
+                console.log('🚀 Sending to Netlify serverless function...');
 
-                // Send to GHL Contacts API v2
-                const response = await fetch('https://services.leadconnectorhq.com/contacts/', {
+                // Call the Netlify serverless function (handles CORS and API key security)
+                const response = await fetch('/.netlify/functions/create-contact', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${GHL_CONFIG.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'Version': GHL_CONFIG.apiVersion
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(ghlData)
+                    body: JSON.stringify(contactData)
                 });
 
                 console.log('📡 Response status:', response.status, response.statusText);
 
+                const result = await response.json();
+
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ GHL API error response:', errorText);
+                    console.error('❌ Error response from serverless function:', result);
 
-                    // Parse error for better debugging
-                    let errorDetails = errorText;
-                    try {
-                        const errorJson = JSON.parse(errorText);
-                        errorDetails = JSON.stringify(errorJson, null, 2);
-                    } catch (e) {
-                        // errorText is not JSON, use as-is
-                    }
-
-                    // Check for common errors
+                    // Check for specific error types
                     if (response.status === 401) {
-                        console.error('🔒 AUTHENTICATION ERROR: Invalid API key or expired token');
+                        console.error('🔒 AUTHENTICATION ERROR: GHL API key is invalid or expired');
                     } else if (response.status === 403) {
-                        console.error('🚫 PERMISSION ERROR: API key does not have permission to create contacts');
+                        console.error('🚫 PERMISSION ERROR: API key lacks permission to create contacts');
                     } else if (response.status === 400) {
-                        console.error('📝 VALIDATION ERROR: Check if custom fields exist in your GHL location');
+                        console.error('📝 VALIDATION ERROR: Check if custom fields exist in GHL location');
+                    } else if (response.status === 500) {
+                        console.error('⚙️ SERVER ERROR: Check Netlify function logs for details');
                     }
 
-                    throw new Error(`GHL API error: ${response.status} - ${errorDetails}`);
+                    return {
+                        success: false,
+                        error: result.error || 'Failed to create contact',
+                        status: response.status
+                    };
                 }
 
-                const result = await response.json();
-                console.log('✅ Successfully sent to GHL:', result);
+                console.log('✅ Contact created successfully!', result);
                 return result;
+
             } catch (error) {
                 console.error('❌ Failed to send to GHL:', error);
 
-                // Check for CORS error
+                // Check for network errors
                 if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
-                    console.error('🌐 CORS ERROR: This is likely a CORS (Cross-Origin) issue.');
-                    console.error('💡 SOLUTION: You need to use a backend proxy or serverless function.');
-                    console.error('   Browser-based requests to GHL API are blocked by CORS policy.');
-                    console.error('   See documentation for implementing a backend proxy.');
+                    console.error('🌐 NETWORK ERROR: Could not reach the serverless function');
+                    console.error('💡 Make sure the site is deployed on Netlify');
                 }
 
-                return { success: false, error: error.message };
+                return {
+                    success: false,
+                    error: error.message || 'Network error occurred'
+                };
             }
         }
 
