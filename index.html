@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Property Renovation Cost Calculator - Jacksonville FL</title>
     <style>
         * {
@@ -949,6 +952,10 @@
             };
 
             try {
+                // Log the webhook URL being used (for debugging)
+                console.log('Sending to Make.com webhook:', CONFIG.makeWebhookUrl);
+                console.log('Webhook data:', webhookData);
+
                 // Send to Make.com webhook
                 const response = await fetch(CONFIG.makeWebhookUrl, {
                     method: 'POST',
@@ -958,17 +965,23 @@
                     body: JSON.stringify(webhookData)
                 });
 
+                console.log('Response received from Make.com:', response);
+
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('Webhook error response:', errorText);
-                    throw new Error(`Webhook error: ${response.status} - ${errorText}`);
+                    console.error('Make.com webhook error response: Unauthorized.');
+                    console.error('Response status:', response.status);
+                    console.error('Response text:', errorText);
+                    console.error('Webhook URL used:', CONFIG.makeWebhookUrl);
+                    throw new Error(`Authentication failed - check your webhook URL at ${CONFIG.makeWebhookUrl}`);
                 }
 
                 const result = await response.json();
                 console.log('Successfully sent to Make.com:', result);
                 return result;
             } catch (error) {
-                console.error('Failed to send to Make.com:', error);
+                console.error('Failed to send to Make.com webhook: Error:', error.message);
+                console.error('Webhook URL that failed:', CONFIG.makeWebhookUrl);
                 // Don't throw - we still want to show results even if webhook fails
                 return { success: false, error: error.message };
             }
