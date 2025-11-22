@@ -699,10 +699,9 @@
         // ========================================
         // CONFIGURATION - UPDATE THESE VALUES
         // ========================================
-        const GHL_CONFIG = {
-            apiKey: 'pit-00d1e783-2f53-4a9e-8795-298f6cadf7fa',
-            locationId: 'Eikn1T3IJ5HrKqwyelJs',
-            apiVersion: '2021-07-28'
+        const WEBHOOK_CONFIG = {
+            makeWebhookUrl: 'https://hook.us2.make.com/lx9e3i2l3guctptpl5y2nwmx1ur4sz5p',
+            ghlApiKey: 'pit-6ee1887f-a209-4860-9845-870dadcee50b'
         };
 
         // Quality Level Selection
@@ -914,75 +913,82 @@
             document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
         });
 
-        // GHL Integration Function
+        // Make.com Webhook Integration Function
         async function sendToGHL(data) {
-            console.log('🚀 GHL Integration Starting...');
+            console.log('🚀 Make.com Webhook Integration Starting...');
             console.log('═══════════════════════════════════════════════════════════');
 
-            // Check if locationId is configured
-            if (GHL_CONFIG.locationId === 'YOUR_LOCATION_ID') {
-                console.warn('⚠️ GHL locationId not configured. Skipping GHL integration.');
+            // Check if webhook URL is configured
+            if (!WEBHOOK_CONFIG.makeWebhookUrl || WEBHOOK_CONFIG.makeWebhookUrl === '') {
+                console.warn('⚠️ Make.com webhook URL not configured. Skipping integration.');
                 console.log('Lead data that would be sent:', data);
                 return { success: false, message: 'Configuration needed' };
             }
 
-            // Prepare data for GHL Contacts API v2
-            const ghlData = {
+            // Prepare data for Make.com webhook → GHL
+            const webhookData = {
+                // Contact Basic Info
                 firstName: data.formData.name.split(' ')[0],
                 lastName: data.formData.name.split(' ').slice(1).join(' ') || 'Unknown',
                 email: data.formData.email,
-                locationId: GHL_CONFIG.locationId,
+                phone: data.formData.phone || '',
+
+                // Source and Tags
                 source: 'Renovation Calculator Website',
-                tags: ['renovation-calculator', 'lead-magnet', data.formData.quality + '-quality']
-            };
+                tags: ['renovation-calculator', 'lead-magnet', data.formData.quality + '-quality'],
 
-            // Add phone if provided
-            if (data.formData.phone) {
-                ghlData.phone = data.formData.phone;
-            }
-
-            // Add custom fields
-            ghlData.customField = {
+                // GHL Custom Fields (exactly as configured in GHL)
                 property_address: data.formData.propertyAddress || 'Not provided',
                 property_type: data.formData.propertyType,
-                square_footage: String(data.formData.squareFootage),
+                square_footage: data.formData.squareFootage, // NUMERICAL field
                 property_age: data.formData.propertyAge,
                 property_condition: data.formData.condition,
                 quality_level: data.formData.quality,
                 investment_strategy: data.formData.strategy,
-                renovation_areas: data.formData.selectedAreas.join(', '),
-                estimated_cost_low: String(Math.round(data.totalLow)),
-                estimated_cost_mid: String(Math.round(data.totalMid)),
-                estimated_cost_high: String(Math.round(data.totalHigh)),
-                calculation_date: new Date().toISOString()
+                renovation_areas: data.formData.selectedAreas.join(', '), // LARGE_TEXT field
+                estimated_cost_low: '$' + Math.round(data.totalLow).toLocaleString(),
+                estimated_cost_mid: '$' + Math.round(data.totalMid).toLocaleString(),
+
+                // Additional metadata for Make.com processing
+                ghl_api_key: WEBHOOK_CONFIG.ghlApiKey,
+                submission_timestamp: new Date().toISOString()
             };
 
             // Log what we're sending
-            console.log('📤 Data being sent to GHL:');
+            console.log('📤 Data being sent to Make.com Webhook:');
             console.log('Contact Info:', {
-                name: `${ghlData.firstName} ${ghlData.lastName}`,
-                email: ghlData.email,
-                phone: ghlData.phone || 'Not provided'
+                name: `${webhookData.firstName} ${webhookData.lastName}`,
+                email: webhookData.email,
+                phone: webhookData.phone || 'Not provided'
             });
-            console.log('Tags:', ghlData.tags);
-            console.log('Custom Fields:', ghlData.customField);
-            console.log('Location ID:', ghlData.locationId);
+            console.log('Tags:', webhookData.tags);
+            console.log('Custom Fields:', {
+                property_address: webhookData.property_address,
+                property_type: webhookData.property_type,
+                square_footage: webhookData.square_footage,
+                property_age: webhookData.property_age,
+                property_condition: webhookData.property_condition,
+                quality_level: webhookData.quality_level,
+                investment_strategy: webhookData.investment_strategy,
+                renovation_areas: webhookData.renovation_areas,
+                estimated_cost_low: webhookData.estimated_cost_low,
+                estimated_cost_mid: webhookData.estimated_cost_mid
+            });
+            console.log('Webhook URL:', WEBHOOK_CONFIG.makeWebhookUrl);
 
             try {
-                console.log('🌐 Sending POST request to GHL API...');
+                console.log('🌐 Sending POST request to Make.com webhook...');
 
-                // Send to GHL Contacts API v2
-                const response = await fetch('https://services.leadconnectorhq.com/contacts/', {
+                // Send to Make.com webhook
+                const response = await fetch(WEBHOOK_CONFIG.makeWebhookUrl, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${GHL_CONFIG.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'Version': GHL_CONFIG.apiVersion
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(ghlData)
+                    body: JSON.stringify(webhookData)
                 });
 
-                console.log('📥 Response received from GHL:', {
+                console.log('📥 Response received from Make.com:', {
                     status: response.status,
                     statusText: response.statusText,
                     ok: response.ok
@@ -990,30 +996,31 @@
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('❌ GHL API error response:', errorText);
+                    console.error('❌ Make.com webhook error response:', errorText);
 
                     // Parse common error types
-                    let errorMessage = `GHL API error: ${response.status} - ${response.statusText}`;
+                    let errorMessage = `Webhook error: ${response.status} - ${response.statusText}`;
                     if (response.status === 401) {
-                        errorMessage = 'Authentication failed - check your API key';
-                    } else if (response.status === 403) {
-                        errorMessage = 'Access denied - check your Location ID and API permissions';
-                    } else if (response.status === 422) {
-                        errorMessage = 'Invalid data - custom fields may not exist in GHL';
+                        errorMessage = 'Authentication failed - check your webhook URL';
+                    } else if (response.status === 404) {
+                        errorMessage = 'Webhook not found - verify Make.com webhook URL';
+                    } else if (response.status === 500) {
+                        errorMessage = 'Make.com processing error - check your Make.com scenario';
                     }
 
                     throw new Error(errorMessage);
                 }
 
-                const result = await response.json();
-                console.log('✅ Successfully sent to GHL!');
-                console.log('Contact ID:', result.contact?.id || result.id || 'Unknown');
-                console.log('Full Response:', result);
+                const result = await response.json().catch(() => ({ accepted: true }));
+                console.log('✅ Successfully sent to Make.com webhook!');
+                console.log('Webhook Response:', result);
+                console.log('📧 Make.com will now create contact in GHL');
+                console.log('📨 GHL workflow will send automated emails/SMS');
                 console.log('═══════════════════════════════════════════════════════════');
 
                 return { success: true, data: result };
             } catch (error) {
-                console.error('❌ Failed to send to GHL:', error);
+                console.error('❌ Failed to send to Make.com webhook:', error);
                 console.log('Error details:', {
                     message: error.message,
                     type: error.name,
@@ -1021,7 +1028,7 @@
                 });
                 console.log('═══════════════════════════════════════════════════════════');
 
-                // Don't throw - we still want to show results even if GHL fails
+                // Don't throw - we still want to show results even if webhook fails
                 return { success: false, error: error.message };
             }
         }
